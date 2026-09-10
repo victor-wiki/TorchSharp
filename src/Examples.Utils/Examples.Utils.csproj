@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- The Directory.Build.props initialize TargetFrameworks to multiple targets. We have to clear that out to set only the targets we support. -->
-    <TargetFrameworks></TargetFrameworks>
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <LangVersion>9.0</LangVersion>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net8.0</TargetFrameworks>
   </PropertyGroup>

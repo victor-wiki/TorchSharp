@@ -107,13 +107,13 @@ namespace TorchSharp
                 /// A float mask of the same type as query, key, value that is added to the attention score.
                 /// </param>
                 /// <param name="p">Dropout probability</param>
-                /// <param name="is_casual">If true, assumes causal attention masking and errors if both attn_mask and is_causal are set.</param>
+                /// <param name="is_causal">If true, assumes causal attention masking and errors if both attn_mask and is_causal are set.</param>
                 /// <returns></returns>
-                public static Tensor scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask = null, double p = 0.0, [MarshalAs(UnmanagedType.U1)] bool is_casual = false)
+                public static Tensor scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask = null, double p = 0.0, [MarshalAs(UnmanagedType.U1)] bool is_causal = false)
                 {
                     if (p < 0) throw new ArgumentException("Dropout probability must be greater than or equal to zero.");
-                    if (is_casual && attn_mask is not null) throw new ArgumentException("Casual attention masking cannot pass a mask.");
-                    var res = THSNN_scaled_dot_product_attention(query.Handle, key.Handle, value.Handle, attn_mask is null ? IntPtr.Zero : attn_mask.Handle, p, is_casual);
+                    if (is_causal && attn_mask is not null) throw new ArgumentException("Casual attention masking cannot pass a mask.");
+                    var res = THSNN_scaled_dot_product_attention(query.Handle, key.Handle, value.Handle, attn_mask is null ? IntPtr.Zero : attn_mask.Handle, p, is_causal);
                     if (res == IntPtr.Zero) { torch.CheckForErrors(); }
                     return new Tensor(res);
                 }

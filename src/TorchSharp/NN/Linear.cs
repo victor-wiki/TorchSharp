@@ -12,12 +12,12 @@ namespace TorchSharp
 
     namespace Modules
     {
-        public sealed class Linear : torch.nn.Module<Tensor, Tensor>
+        public class Linear : torch.nn.Module<Tensor, Tensor>
         {
             const string WeightComponentName = nameof(weight);
             const string BiasComponentName = nameof(bias);
 
-            internal Linear(Parameter weight, Parameter? bias = null) : base(nameof(Linear))
+            public Linear(Parameter weight, Parameter? bias = null) : base(nameof(Linear))
             {
                 this.in_features = weight.shape[1];
                 this.out_features = weight.shape[0];
@@ -28,7 +28,7 @@ namespace TorchSharp
                 }
             }
 
-            internal Linear(long inputSize, long outputSize, bool hasBias = true, Device? device = null, ScalarType? dtype = null) : base(nameof(Linear))
+            public Linear(long inputSize, long outputSize, bool hasBias = true, Device? device = null, ScalarType? dtype = null) : base(nameof(Linear))
             {
                 this.in_features = inputSize;
                 this.out_features = outputSize;

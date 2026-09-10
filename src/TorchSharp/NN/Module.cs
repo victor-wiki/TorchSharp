@@ -5,13 +5,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using TorchSharp.Modules;
-
+using TorchSharp.Utils;
 using static System.Linq.Enumerable;
+using static TorchSharp.PInvoke.NativeMethods;
 using static TorchSharp.torch;
 using static TorchSharp.Utils.LEB128Codec;
-using static TorchSharp.PInvoke.NativeMethods;
-using TorchSharp.Utils;
 
 #nullable enable
 namespace TorchSharp
@@ -32,10 +32,12 @@ namespace TorchSharp
             /// </remarks>
             public class Module : IDisposable
             {
+                private static readonly string keyItemReplacePatten = "k__BackingField|<|>";
+
                 /// <summary>
                 /// Class wrapping PyTorch's module object reference.
                 /// </summary>
-                protected internal sealed class HType : SafeHandle
+                public sealed class HType : SafeHandle
                 {
                     public HType(IntPtr preexistingHandle, bool ownsHandle, Action<HType>? dispose = null)
                         : base(IntPtr.Zero, ownsHandle)
@@ -70,7 +72,7 @@ namespace TorchSharp
                     private Action<HType>? _dispose;
                 }
 
-                internal HType handle;
+                public HType handle;
 
                 /// Stores the AnyModule corresponding to this module.
                 internal BoxedModule? boxedModule;
@@ -83,7 +85,7 @@ namespace TorchSharp
                     }
                 }
 
-                internal Module(HType handle, IntPtr? boxedHandle)
+                public Module(HType handle, IntPtr? boxedHandle)
                 {
                     this.handle = handle;
                     boxedModule = boxedHandle.HasValue ? new BoxedModule(boxedHandle.Value) : null;
@@ -92,7 +94,7 @@ namespace TorchSharp
                     register_p_and_b();
                 }
 
-                internal Module(IntPtr handle, IntPtr? boxedHandle, bool ownsHandle = true)
+                public Module(IntPtr handle, IntPtr? boxedHandle, bool ownsHandle = true)
                 {
                     this.handle = new HType(handle, ownsHandle);
                     boxedModule = boxedHandle.HasValue ? new BoxedModule(boxedHandle.Value) : null;
@@ -580,14 +582,31 @@ namespace TorchSharp
                     using var d = torch.no_grad();
 
                     foreach (var key in source.Keys) {
-                        if (skip.Contains(key)) continue;
+                        string? matchedKey = null;
+
                         if (destination.ContainsKey(key)) {
-                            destination[key].copy_(source[key]);
+                            matchedKey = key;
+                        } else {
+                            matchedKey = this.FindMatchedKey(destination, key);
+                        }
+
+                        if (matchedKey != null) {
+                            destination[matchedKey].copy_(source[key]);
                         }
                     }
 
                     return (missing, unexpected);
                 }
+
+                private string? FindMatchedKey(Dictionary<string, Tensor> destination, string key)
+                {
+                    var keys = destination.Keys;
+
+                    string? matchedKey = keys.FirstOrDefault(item => Regex.Replace(item, keyItemReplacePatten, "") == key);
+
+                    return matchedKey;
+                }
+
 
                 protected virtual (string name, Parameter parameter)[] _named_parameters()
                 {
@@ -951,14 +970,15 @@ namespace TorchSharp
                 /// It may be necessary to also pass 'strict=false' to avoid exceptions.</para>
                 /// <para>Only load models from trusted sources. Loading models from untrusted sources is a security risk.</para>
                 /// </remarks>
-                public virtual Module load(string location, bool strict = true, IList<string>? skip = null, Dictionary<string, bool>? loadedParameters = null)
+                /// <param name="readTensors"></param>
+                public virtual Module load(string location, bool strict = true, IList<string>? skip = null, Dictionary<string, bool>? loadedParameters = null, Dictionary<string, Tensor>? readTensors = null)
                 {
                     if (!System.IO.File.Exists(location))
                         throw new System.IO.FileNotFoundException(location);
 
                     using var stream = System.IO.File.OpenRead(location);
                     using var reader = new System.IO.BinaryReader(stream);
-                    load(reader, strict, skip, loadedParameters);
+                    load(reader, strict, skip, loadedParameters, readTensors);
 
                     return this;
                 }
@@ -981,7 +1001,8 @@ namespace TorchSharp
                 /// It may be necessary to also pass 'strict=false' to avoid exceptions.</para>
                 /// <para>Only load models from trusted sources. Loading models from untrusted sources is a security risk.</para>
                 /// </remarks>
-                public virtual Module load(System.IO.BinaryReader reader, bool strict = true, IList<string>? skip = null, Dictionary<string, bool>? loadedParameters = null)
+                /// <param name="readTensors">Optional dictionary that will be populated with tensors that were read from the stream but skipped when loading into this module. If null, skipped tensors are discarded.</param>
+                public virtual Module load(System.IO.BinaryReader reader, bool strict = true, IList<string>? skip = null, Dictionary<string, bool>? loadedParameters = null, Dictionary<string, Tensor>? readTensors = null)
                 {
                     skip ??= Array.Empty<string>();
 
@@ -1011,7 +1032,11 @@ namespace TorchSharp
                             else {
                                 // Even if we are skipping this tensor, we need to load it in so that
                                 // the BinaryReader seeks forward in the input stream.
-                                TensorExtensionMethods.Load(reader, skip: true);
+                                Tensor tensor = TensorExtensionMethods.Load(reader, skip: readTensors == null);
+
+                                if (readTensors != null) {
+                                    readTensors.Add(key, tensor);
+                                }
                             }
 
                             loadedParameters?.Add(key, found);
@@ -1041,10 +1066,11 @@ namespace TorchSharp
                 /// It may be necessary to also pass 'strict=false' to avoid exceptions.</para>
                 /// <para>Only load models from trusted sources. Loading models from untrusted sources is a security risk.</para>
                 /// </remarks>
-                public Module load(System.IO.Stream stream, bool strict = true, IList<string>? skip = null, Dictionary<string, bool>? loadedParameters = null)
+                /// <param name="readTensors">Optional dictionary that will be populated with tensors that were read from the stream but skipped when loading into this module. If null, skipped tensors are discarded.</param>
+                public Module load(System.IO.Stream stream, bool strict = true, IList<string>? skip = null, Dictionary<string, bool>? loadedParameters = null, Dictionary<string, Tensor>? readTensors = null)
                 {
                     using var reader = new System.IO.BinaryReader(stream);
-                    return load(reader, strict, skip, loadedParameters);
+                    return load(reader, strict, skip, loadedParameters, readTensors);
                 }
 
                 /// <summary>
@@ -1370,9 +1396,9 @@ namespace TorchSharp
             /// <typeparam name="TResult">The return type of the module's forward() function.</typeparam>
             public abstract class Module<T, TResult> : HookableModule<Func<Module<T,TResult>, T, T>, Func<Module<T, TResult>, T, TResult, TResult>>, IModule<T, TResult>
             {
-                protected Module(string name) : base(name) { }
-                protected Module(IntPtr handle, IntPtr boxedHandle) : base(handle, boxedHandle) { }
-                internal Module(HType handle, IntPtr? boxedHandle) : base(handle, boxedHandle) { }
+                public Module(string name) : base(name) { }
+                public Module(IntPtr handle, IntPtr boxedHandle) : base(handle, boxedHandle) { }
+                public Module(HType handle, IntPtr? boxedHandle) : base(handle, boxedHandle) { }
 
                 /// <summary>
                 /// Invoke the logic of the module.

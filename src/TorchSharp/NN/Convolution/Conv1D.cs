@@ -1,19 +1,21 @@
 // Copyright (c) .NET Foundation and Contributors.  All Rights Reserved.  See LICENSE in the project root for license information.
 using System;
-using static TorchSharp.torch;
 using static TorchSharp.PInvoke.NativeMethods;
+using static TorchSharp.torch;
+using F = TorchSharp.torch.nn.functional;
 
 #nullable enable
 namespace TorchSharp
 {
+    using System.Linq;
     using Modules;
 
     namespace Modules
     {
-        public sealed class Conv1d : Convolution
+        public class Conv1d : Convolution
         {
-            internal Conv1d(long in_channels, long out_channels, long kernel_size, long stride, long? padding, Padding? padding_type, long dilation, long groups = 1, bool bias = true, PaddingModes padding_mode = PaddingModes.Zeros, torch.Device? device = null, ScalarType? dtype = null)
-                        : base(nameof(Conv1d), in_channels, out_channels, new[] { kernel_size }, new[] { stride }, padding.HasValue ? new[] { padding.Value } : null, padding_type, new[] { dilation }, false, new[] { 0L }, groups, bias, padding_mode, device, dtype) { }
+            public Conv1d(long in_channels, long out_channels, long kernel_size, long stride = 1, long? padding = 0, Padding? padding_type = null, long dilation = 1, long groups = 1, bool bias = true, PaddingModes padding_mode = PaddingModes.Zeros, torch.Device? device = null, ScalarType? dtype = null)
+                          : base(nameof(Conv1d), in_channels, out_channels, new[] { kernel_size }, new[] { stride }, padding.HasValue ? new[] { padding.Value } : null, padding_type, new[] { dilation }, false, new[] { 0L }, groups, bias, padding_mode, device, dtype) { }
 
             public override Tensor forward(Tensor input)
             {
@@ -29,6 +31,28 @@ namespace TorchSharp
                     return torch.nn.functional.conv1d_padding(input, weight, bias, stride[0], padding_type.Value, dilation[0], groups);
 
                 return torch.nn.functional.conv1d(input, weight, bias, stride[0], padding?[0], dilation[0], groups);
+            }
+
+            public virtual Tensor conv_forward(Tensor input, Tensor weight, Tensor bias)
+            {
+                if (this.padding_mode != PaddingModes.Zeros) {
+                    return F.conv1d(
+                        F.pad(
+                            input, this._reversed_padding_repeated_twice, this.padding_mode
+                        ),
+                        weight,
+                        bias,
+                        this.stride?.FirstOrDefault(),
+                        this.padding?.FirstOrDefault() ?? 0,
+                        this.dilation?.FirstOrDefault(),
+                        this.groups
+
+                    );
+                }
+        ;
+                return F.conv1d(
+                    input, weight, bias, this.stride?.FirstOrDefault(), this.padding?.FirstOrDefault() ?? 0, this.dilation?.FirstOrDefault(), this.groups
+                );
             }
         }
     }

@@ -3,20 +3,23 @@
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
-      <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
+      <TargetFrameworks>net10.0;netstandard2.0</TargetFrameworks>
       <LangVersion>9.0</LangVersion>
       <IncludeInPackage>TorchSharp</IncludeInPackage>
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
       <UseMLCodeAnalyzer>false</UseMLCodeAnalyzer>
       <UseStyleCopAnalyzer>false</UseStyleCopAnalyzer>
-      <IsPackable>false</IsPackable>
-      <DefineConstants>$(DefineConstants);LIBTORCH_$(LibTorchPackageVersion.Replace('.', '_'));CUDA_$(CudaVersionDot.Replace('.', '_'))</DefineConstants>
+      <IsPackable>false</IsPackable>     
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="TorchVision\**" />
     <EmbeddedResource Remove="TorchVision\**" />
     <None Remove="TorchVision\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Remove="E:\projects\git\TorchSharp\src\stylecop.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +32,7 @@
 
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.21.9" />
+    <PackageReference Include="libtorch-cpu" Version="2.10.0" />
     <PackageReference Include="SharpZipLib" Version="1.4.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.6" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.6" />
@@ -47,6 +51,12 @@
     </Compile>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="LibTorchSharp.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 
   <PropertyGroup>
       <PackDependsOn>
@@ -55,21 +65,17 @@
       </PackDependsOn>
       <SignAssembly>True</SignAssembly>
       <AssemblyOriginatorKeyFile>..\..\build\TorchSharp.snk</AssemblyOriginatorKeyFile>
+      <PackageId>victor-wiki.$(AssemblyName)</PackageId>
+      <Version>1.0.0</Version>
+      <PackageReleaseNotes>This project is fork from https://github.com/dotnet/TorchSharp and make some changes. </PackageReleaseNotes>
+      <AssemblyVersion>1.0.0</AssemblyVersion>
+      <FileVersion>1.0.0</FileVersion>
+      <RepositoryUrl>https://github.com/victor-wiki/TorchSharp</RepositoryUrl>
   </PropertyGroup>
 
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
-  <!-- Trigger the download+placement of the redist bits and the build of the C++ project -->
-  <Target Name="BuildNativeLibTorch" BeforeTargets="BeforeBuild">
-    <Message Importance="High" Text="Using VersionSuffix = $(VersionSuffix)" />
-    <Message Importance="High" Text="Using Version = $(Version)" />
-    <MSBuild Projects="..\Redist\libtorch-cuda-$(CudaVersionDot)\libtorch-cuda-$(CudaVersionDot).proj" Condition="'$(BuildingInsideVisualStudio)'!='true' AND '$(SkipNative)' != 'true'  AND '$(SkipCuda)' != 'true'" RemoveProperties="TargetFramework" Targets="Build" />
-
-    <MSBuild Projects="..\Redist\libtorch-cpu\libtorch-cpu.proj" Condition="'$(BuildingInsideVisualStudio)'!='true' AND '$(SkipNative)' != 'true'" RemoveProperties="TargetFramework" Targets="Build" />
-
-    <MSBuild Projects="..\Native\build.proj" Condition="'$(SkipNative)' != 'true'" RemoveProperties="TargetFramework" Targets="Build" />
-  </Target>
 
   <Target Name="RealPack">
     <MSBuild Projects="..\..\pkg\pack.proj" Targets="Pack" />

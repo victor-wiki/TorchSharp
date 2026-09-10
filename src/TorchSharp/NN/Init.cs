@@ -154,9 +154,25 @@ namespace TorchSharp
                 /// </summary>
                 public static Tensor kaiming_uniform_(Tensor tensor, double a = 0, FanInOut mode = FanInOut.FanIn, NonlinearityType nonlinearity = NonlinearityType.LeakyReLU)
                 {
-                    THSInit_kaiming_uniform_(tensor.Handle, a, (long)mode, (long)nonlinearity);
-                    torch.CheckForErrors();
-                    return tensor;
+                    var fan = _calculate_correct_fan(tensor, mode);
+                    var gain = calculate_gain(nonlinearity, a);
+                    var std = gain / Math.Sqrt(fan);
+                    var bound = Math.Sqrt(3.0) * std; // Calculate uni
+
+                    using (torch.no_grad()) {
+                        //THSInit_kaiming_uniform_(tensor.Handle, a, (long)mode, (long)nonlinearity);
+                        THSInit_uniform_(tensor.Handle, -bound, bound);
+                        torch.CheckForErrors();
+                        return tensor;
+                    }
+                }
+
+                private static long _calculate_correct_fan(Tensor tensor, FanInOut mode = FanInOut.FanIn)
+                {
+                    // pyrefly: ignore [bad-assignment]
+                    var (fan_in, fan_out) = CalculateFanInAndFanOut(tensor);
+
+                    return mode == FanInOut.FanIn ? fan_in : fan_out;
                 }
 
                 /// <summary>

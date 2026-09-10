@@ -16,12 +16,12 @@ namespace TorchSharp
         /// <summary>
         /// This class is used to represent a LayerNorm module.
         /// </summary>
-        public sealed class LayerNorm : torch.nn.Module<Tensor, Tensor>
+        public class LayerNorm : torch.nn.Module<Tensor, Tensor>
         {
             const string WeightComponentName = nameof(weight);
             const string BiasComponentName = nameof(bias);
 
-            internal LayerNorm(long[] normalized_shape, double eps, bool elementwise_affine, bool bias, Device? device, ScalarType? dtype) : base(nameof(LayerNorm))
+            public LayerNorm(long[] normalized_shape, double eps = 1e-5, bool elementwise_affine = true, bool bias = true, Device? device = null, ScalarType? dtype = null) : base(nameof(LayerNorm))
             {
                 this.normalized_shape = normalized_shape;
                 this.eps = eps;

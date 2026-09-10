@@ -5,7 +5,7 @@
     <TestUsesLibTorch>true</TestUsesLibTorch>
     <TestCuda>true</TestCuda>
     <!-- The Directory.Build.props initialize TargetFrameworks to multiple targets. We have to clear that out to set only the targets we support. -->
-    <TargetFrameworks></TargetFrameworks>
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <LangVersion>9.0</LangVersion>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net8.0</TargetFrameworks>
     <TestUsesLibTorch>true</TestUsesLibTorch>
@@ -25,11 +25,9 @@
     <PackageReference Include="SharpZipLib" Version="1.4.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.6" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.6" />
-    <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Examples.Utils\Examples.Utils.csproj" />
     <ProjectReference Include="..\TorchAudio\TorchAudio.csproj" />
     <ProjectReference Include="..\TorchSharp\TorchSharp.csproj" />
     <ProjectReference Include="..\TorchVision\TorchVision.csproj" />
