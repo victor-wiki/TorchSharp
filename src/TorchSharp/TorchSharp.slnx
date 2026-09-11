@@ -1,10 +1,9 @@
 <Solution>
   <Configurations>
     <Platform Name="Any CPU" />
-    <Platform Name="arm64" />
     <Platform Name="x64" />
   </Configurations>
-  <Folder Name="/src/">
-    <Project Path="src/TorchSharp/TorchSharp.csproj" />
-  </Folder>
+  <Project Path="TorchSharp.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
 </Solution>

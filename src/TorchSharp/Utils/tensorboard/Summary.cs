@@ -225,7 +225,7 @@ namespace TorchSharp
                     internal static Tensorboard.Summary.Types.Image make_image(SKBitmap img, double rescale = 1)
                     {
                         using var image = img.Copy();
-                        byte[] bmpData = image.Resize(new SKSizeI((int)(image.Width * rescale), (int)(image.Height * rescale)), SKFilterQuality.High).Encode(SKEncodedImageFormat.Png, 100).ToArray();
+                        byte[] bmpData = image.Resize(new SKSizeI((int)(image.Width * rescale), (int)(image.Height * rescale)), new SKSamplingOptions() {  }).Encode(SKEncodedImageFormat.Png, 100).ToArray();
                         return new Tensorboard.Summary.Types.Image() { Height = image.Height, Width = image.Width, Colorspace = 4, EncodedImageString = ByteString.CopyFrom(bmpData) };
                     }
 
