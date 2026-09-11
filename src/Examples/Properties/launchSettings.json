@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "Examples": {
-      "commandName": "Project",
-      "commandLineArgs": "vgg11",
-      "nativeDebugging": true
-    }
-  }
-}
