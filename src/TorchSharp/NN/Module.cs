@@ -1,8 +1,5 @@
 // Copyright (c) .NET Foundation and Contributors.  All Rights Reserved.  See LICENSE in the project root for license information.
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -32,7 +29,8 @@ namespace TorchSharp
             /// </remarks>
             public class Module : IDisposable
             {
-                private static readonly string keyItemReplacePatten = "k__BackingField|<|>";
+                public const string KeyItemReplacePattern = "k__BackingField|<|>";
+                public bool is_hf_initialized { get; set; }
 
                 /// <summary>
                 /// Class wrapping PyTorch's module object reference.
@@ -55,7 +53,8 @@ namespace TorchSharp
 
                     protected override bool ReleaseHandle()
                     {
-                        if (!IsInvalid && _dispose is not null) {
+                        if (!IsInvalid && _dispose is not null)
+                        {
                             _dispose(this);
                         }
                         SetHandle(IntPtr.Zero);
@@ -64,7 +63,8 @@ namespace TorchSharp
 
                     protected override void Dispose(bool disposing)
                     {
-                        if (disposing) {
+                        if (disposing)
+                        {
                             ReleaseHandle();
                         }
                     }
@@ -77,8 +77,10 @@ namespace TorchSharp
                 /// Stores the AnyModule corresponding to this module.
                 internal BoxedModule? boxedModule;
 
-                internal BoxedModule BoxedModule {
-                    get {
+                internal BoxedModule BoxedModule
+                {
+                    get
+                    {
                         if (boxedModule == null)
                             throw new InvalidOperationException("A Sequential or Loaded module may not be added to a Sequential");
                         return boxedModule;
@@ -105,10 +107,12 @@ namespace TorchSharp
 
                 private void register_p_and_b()
                 {
-                    foreach (var (parameterName, parameter) in _named_parameters()) {
+                    foreach (var (parameterName, parameter) in _named_parameters())
+                    {
                         register_parameter(parameterName, parameter);
                     }
-                    foreach (var (bufferName, buffer) in _named_buffers()) {
+                    foreach (var (bufferName, buffer) in _named_buffers())
+                    {
                         register_buffer(bufferName, buffer);
                     }
                 }
@@ -129,16 +133,20 @@ namespace TorchSharp
                 /// </summary>
                 protected virtual void Dispose(bool disposing)
                 {
-                    if (disposing && !handle.IsInvalid) {
+                    if (disposing && !handle.IsInvalid)
+                    {
 
-                        foreach (var (_, p) in named_buffers(false)) {
+                        foreach (var (_, p) in named_buffers(false))
+                        {
                             p.DetachFromDisposeScope().Dispose();
                         }
-                        foreach (var (_, b) in named_parameters(false)) {
+                        foreach (var (_, b) in named_parameters(false))
+                        {
                             b.DetachFromDisposeScope().Dispose();
                         }
 
-                        foreach (var (_, m) in named_modules()) {
+                        foreach (var (_, m) in named_modules())
+                        {
                             m.Dispose();
                         }
 
@@ -162,7 +170,8 @@ namespace TorchSharp
                     if (!dtype.IsFloatingPoint() && !dtype.IsComplex())
                         throw new ArgumentException($"nn.Module.to only accepts floating point or complex types, but got desired dtype={dtype.ToString()}");
 
-                    if (device.type != DeviceType.CUDA) { device = new Device(device.type, -1); };
+                    if (device.type != DeviceType.CUDA) { device = new Device(device.type, -1); }
+                    ;
 
                     if (device.type == DeviceType.CUDA && !torch.cuda.is_available()) throw new InvalidOperationException("CUDA is not available.");
 
@@ -191,7 +200,8 @@ namespace TorchSharp
 
                     if (deviceType == DeviceType.CUDA && !torch.cuda.is_available()) throw new InvalidOperationException("CUDA is not available.");
 
-                    if (deviceType != _deviceType || deviceIndex != _deviceIndex) {
+                    if (deviceType != _deviceType || deviceIndex != _deviceIndex)
+                    {
 
                         InitializeDeviceType(deviceType);
                         THSNN_Module_to_device(handle, (int)deviceType, deviceIndex, non_blocking);
@@ -244,7 +254,8 @@ namespace TorchSharp
                 {
                     if (dtype is null && device is null) throw new ArgumentNullException($"{nameof(dtype)} and {nameof(device)} are both null,");
 
-                    foreach (var (_, sm) in named_children()) {
+                    foreach (var (_, sm) in named_children())
+                    {
                         if (device is null) sm._to(dtype!.Value, non_blocking);
                         else if (dtype is null) sm._to(device.type, device.index, non_blocking);
                         else sm._to(device, dtype.Value, non_blocking);
@@ -263,13 +274,17 @@ namespace TorchSharp
 
                     var propsByName = props.ToDictionary(prop => prop.Name);
 
-                    foreach (var (name, param) in named_parameters(false).ToList()) {
+                    foreach (var (name, param) in named_parameters(false).ToList())
+                    {
 
                         if (!ReplaceParameter(dtype, device, param, out var p)) continue;
 
-                        if (propsByName.TryGetValue(name, out var property)) {
+                        if (propsByName.TryGetValue(name, out var property))
+                        {
                             property.SetValue(this, p);
-                        } else {
+                        }
+                        else
+                        {
                             param?.Dispose();
 
                             ConditionallyRegisterParameter(name, p);
@@ -281,26 +296,31 @@ namespace TorchSharp
 
                     }
 
-                    foreach (var (name, buffer) in named_buffers(false).ToList()) {
+                    foreach (var (name, buffer) in named_buffers(false).ToList())
+                    {
 
                         if (!ReplaceBuffer(dtype, device, buffer, out var t)) continue;
 
-                        if (propsByName.TryGetValue(name, out var property)) {
+                        if (propsByName.TryGetValue(name, out var property))
+                        {
                             property.SetValue(this, t);
-                        } else {
+                        }
+                        else
+                        {
                             ConditionallyRegisterBuffer(name, t);
                             if (fieldsByComponentName.TryGetValue(name, out var field))
                                 field.SetValue(this, t);
                         }
                     }
 
-                    if (device is not null) {
+                    if (device is not null)
+                    {
                         _deviceType = device.type;
                         _deviceIndex = device.index;
                     }
                 }
 
-                protected static bool  ReplaceBuffer(ScalarType? dtype, Device? device, Tensor buffer, out Tensor? result)
+                protected static bool ReplaceBuffer(ScalarType? dtype, Device? device, Tensor buffer, out Tensor? result)
                 {
                     result = null;
 
@@ -329,14 +349,16 @@ namespace TorchSharp
                     // When moving the parameter, we don't want the autograd to track this movement on the graph.
                     // In addition, we need the new tensor to be a leaf to accumulate gradients, so if we didn't
                     // disable grad we would need to call .detach() on the moved tensor.
-                    using (var d = torch.no_grad()) {
+                    using (var d = torch.no_grad())
+                    {
                         p = new Parameter(
                             data: param.to(paramType, device ?? param.device),
                             requires_grad: param.requires_grad);
                         _ = p.DetachFromDisposeScope();
 
                         // Copy the gradient over as well, if it exists
-                        if (grad is not null) {
+                        if (grad is not null)
+                        {
                             using var newGrad = grad.to(paramType, device ?? param.device)
                                 .with_requires_grad(grad.requires_grad);
                             p.grad = newGrad;
@@ -345,15 +367,18 @@ namespace TorchSharp
                     return true;
                 }
 
-                private static IEnumerable<FieldInfo> GetFieldsRecursive(Type type, BindingFlags bindingFlags) {
+                private static IEnumerable<FieldInfo> GetFieldsRecursive(Type type, BindingFlags bindingFlags)
+                {
 
                     Type? currentType = type;
                     var seenFields = new HashSet<string>();  // Track field names we've seen
 
-                    while (currentType != null && currentType != typeof(object)) {
+                    while (currentType != null && currentType != typeof(object))
+                    {
                         var fields = currentType.GetFields(bindingFlags);
 
-                        foreach (var field in fields) {
+                        foreach (var field in fields)
+                        {
                             if (seenFields.Add(field.Name))
                                 yield return field;
                         }
@@ -418,8 +443,10 @@ namespace TorchSharp
                 /// <summary>
                 /// Check whether the module is set to training or evaluation mode.
                 /// </summary>
-                public virtual bool training {
-                    get {
+                public virtual bool training
+                {
+                    get
+                    {
                         var res = THSNN_Module_is_training(handle);
                         CheckForErrors();
                         return res;
@@ -431,12 +458,17 @@ namespace TorchSharp
                     THSNN_Module_zero_grad(handle, set_to_none);
                     CheckForErrors();
 
-                    foreach (var (_, p) in named_parameters()) {
+                    foreach (var (_, p) in named_parameters())
+                    {
                         using var grad = p.grad;
-                        if (grad is not null) {
-                            if (set_to_none) {
+                        if (grad is not null)
+                        {
+                            if (set_to_none)
+                            {
                                 p.grad = null;
-                            } else {
+                            }
+                            else
+                            {
                                 grad.zero_();
                             }
                         }
@@ -454,7 +486,8 @@ namespace TorchSharp
                     var seen = new HashSet<IntPtr>();
                     seen.Add(IntPtr.Zero);              // Ignore invalid buffers.
 
-                    foreach (var nsm in _internal_buffers) {
+                    foreach (var nsm in _internal_buffers)
+                    {
                         if (seen.Contains(nsm.Item2.Item1.handle) || !nsm.Item2.Item2) continue;
                         seen.Add(nsm.Item2.Item1.handle);
                         yield return (nsm.Item1, nsm.Item2.Item1);
@@ -462,8 +495,10 @@ namespace TorchSharp
 
                     if (!recurse) yield break;
 
-                    foreach (var (submoduleName, subModule) in _internal_submodules) {
-                        foreach (var (bufferName, buffer) in subModule.named_buffers(true, include_nonpersistent)) {
+                    foreach (var (submoduleName, subModule) in _internal_submodules)
+                    {
+                        foreach (var (bufferName, buffer) in subModule.named_buffers(true, include_nonpersistent))
+                        {
                             if (seen.Contains(buffer.handle)) continue;
                             seen.Add(buffer.handle);
                             yield return ($"{submoduleName}.{bufferName}", buffer);
@@ -491,12 +526,15 @@ namespace TorchSharp
                 /// <returns>(string, Module) – Tuple of name and module</returns>
                 public virtual IEnumerable<(string name, Module module)> named_modules()
                 {
-                    foreach (var nsm in _internal_submodules) {
+                    foreach (var nsm in _internal_submodules)
+                    {
                         yield return nsm;
                     }
 
-                    foreach (var (submoduleName, sm) in _internal_submodules) {
-                        foreach (var (n, p) in sm.named_modules()) {
+                    foreach (var (submoduleName, sm) in _internal_submodules)
+                    {
+                        foreach (var (n, p) in sm.named_modules())
+                        {
                             yield return ($"{submoduleName}.{n}", p);
                         }
                     }
@@ -525,17 +563,20 @@ namespace TorchSharp
                 {
                     destination ??= new Dictionary<string, Tensor>();
 
-                    foreach (var p in named_parameters()) {
+                    foreach (var p in named_parameters())
+                    {
                         var key = string.IsNullOrEmpty(prefix) ? $"{p.name}" : $"{prefix}.{p.name}";
                         destination.TryAdd(key, p.Item2);
                     }
 
-                    foreach (var p in named_buffers(include_nonpersistent: false) ) {
+                    foreach (var p in named_buffers(include_nonpersistent: false))
+                    {
                         var key = string.IsNullOrEmpty(prefix) ? $"{p.name}" : $"{prefix}.{p.name}";
                         destination.TryAdd(key, p.Item2);
                     }
 
-                    foreach (var (n, p) in _internal_submodules) {
+                    foreach (var (n, p) in _internal_submodules)
+                    {
                         var key = string.IsNullOrEmpty(prefix) ? $"{n}" : $"{prefix}.{n}";
                         p.state_dict(destination, key);
                     }
@@ -560,16 +601,20 @@ namespace TorchSharp
 
                     var destination = state_dict();
 
-                    foreach (var key in source.Keys) {
+                    foreach (var key in source.Keys)
+                    {
                         if (skip.Contains(key)) continue;
-                        if (!destination.ContainsKey(key)) {
+                        if (!destination.ContainsKey(key))
+                        {
                             unexpected.Add(key);
                         }
                     }
 
-                    foreach (var key in destination.Keys) {
+                    foreach (var key in destination.Keys)
+                    {
                         if (skip.Contains(key)) continue;
-                        if (!source.ContainsKey(key)) {
+                        if (!source.ContainsKey(key))
+                        {
                             missing.Add(key);
                         }
                     }
@@ -581,16 +626,21 @@ namespace TorchSharp
                     // requires_grad. Therefore, we will perform the copy in a no_grad context.
                     using var d = torch.no_grad();
 
-                    foreach (var key in source.Keys) {
+                    foreach (var key in source.Keys)
+                    {
                         string? matchedKey = null;
 
-                        if (destination.ContainsKey(key)) {
+                        if (destination.ContainsKey(key))
+                        {
                             matchedKey = key;
-                        } else {
+                        }
+                        else
+                        {
                             matchedKey = this.FindMatchedKey(destination, key);
                         }
 
-                        if (matchedKey != null) {
+                        if (matchedKey != null)
+                        {
                             destination[matchedKey].copy_(source[key]);
                         }
                     }
@@ -602,7 +652,7 @@ namespace TorchSharp
                 {
                     var keys = destination.Keys;
 
-                    string? matchedKey = keys.FirstOrDefault(item => Regex.Replace(item, keyItemReplacePatten, "") == key);
+                    string? matchedKey = keys.FirstOrDefault(item => Regex.Replace(item, KeyItemReplacePattern, "") == key);
 
                     return matchedKey;
                 }
@@ -642,15 +692,18 @@ namespace TorchSharp
                     var seen = new HashSet<IntPtr>();
                     seen.Add(IntPtr.Zero);              // Ignore invalid parameters.
 
-                    foreach (var nsm in _internal_params) {
+                    foreach (var nsm in _internal_params)
+                    {
                         if (seen.Contains(nsm.Item2.handle)) continue;
                         seen.Add(nsm.Item2.handle);
                         yield return nsm;
                     }
 
                     if (!recurse) yield break;
-                    foreach (var (submoduleName, subModule) in _internal_submodules) {
-                        foreach (var (parameterName, parameter) in subModule.named_parameters(true)) {
+                    foreach (var (submoduleName, subModule) in _internal_submodules)
+                    {
+                        foreach (var (parameterName, parameter) in subModule.named_parameters(true))
+                        {
                             if (seen.Contains(parameter.handle)) continue;
                             seen.Add(parameter.handle);
                             yield return ($"{submoduleName}.{parameterName}", parameter);
@@ -662,7 +715,8 @@ namespace TorchSharp
                 {
                     IntPtr[] ptrArray;
 
-                    using (var pa = new PinnedArray<IntPtr>()) {
+                    using (var pa = new PinnedArray<IntPtr>())
+                    {
                         AllocatePinnedArray allocator = pa.CreateArray;
                         THSNN_Module_get_parameters(handle, allocator, recurse);
                         CheckForErrors();
@@ -681,13 +735,15 @@ namespace TorchSharp
 
                 public virtual bool has_buffer(string target)
                 {
-                    if (_internal_buffers.TryGetValue(target, out var buffer)) {
+                    if (_internal_buffers.TryGetValue(target, out var buffer))
+                    {
                         return true;
                     }
 
                     var splits = target.Split('.');
                     if (splits.Length <= 1) return false;
-                    foreach (var child in named_children().Where(nc => nc.name == splits[0])) {
+                    foreach (var child in named_children().Where(nc => nc.name == splits[0]))
+                    {
                         if (child.module.has_buffer(target.Remove(0, splits[0].Length + 1)))
                             return true;
                     }
@@ -696,13 +752,15 @@ namespace TorchSharp
 
                 public virtual bool has_parameter(string target)
                 {
-                    if (_internal_params.TryGetValue(target, out var parameter)) {
+                    if (_internal_params.TryGetValue(target, out var parameter))
+                    {
                         return true;
                     }
 
                     var splits = target.Split('.');
                     if (splits.Length <= 1) return false;
-                    foreach (var child in named_children().Where(nc => nc.name == splits[0])) {
+                    foreach (var child in named_children().Where(nc => nc.name == splits[0]))
+                    {
                         if (child.module.has_parameter(target.Remove(0, splits[0].Length + 1)))
                             return true;
                     }
@@ -716,13 +774,15 @@ namespace TorchSharp
                 /// <returns>The tensor referenced by target</returns>
                 public virtual Tensor? get_buffer(string target)
                 {
-                    if (_internal_buffers.TryGetValue(target, out var buffer)) {
+                    if (_internal_buffers.TryGetValue(target, out var buffer))
+                    {
                         return buffer.Item1;
                     }
 
                     var splits = target.Split('.');
                     if (splits.Length <= 1) return null;
-                    foreach (var child in named_children().Where(nc => nc.name == splits[0])) {
+                    foreach (var child in named_children().Where(nc => nc.name == splits[0]))
+                    {
                         var p = child.module.get_buffer(target.Remove(0, splits[0].Length + 1));
                         if (p is not null)
                             return p;
@@ -737,13 +797,15 @@ namespace TorchSharp
                 /// <returns>The Parameter referenced by target</returns>
                 public virtual Parameter? get_parameter(string target)
                 {
-                    if (_internal_params.TryGetValue(target, out var parameter)) {
+                    if (_internal_params.TryGetValue(target, out var parameter))
+                    {
                         return parameter;
                     }
 
                     var splits = target.Split('.');
                     if (splits.Length <= 1) return null;
-                    foreach (var child in named_children().Where(nc => nc.name == splits[0])) {
+                    foreach (var child in named_children().Where(nc => nc.name == splits[0]))
+                    {
                         var p = child.module.get_parameter(target.Remove(0, splits[0].Length + 1));
                         if (p is not null)
                             return p;
@@ -815,18 +877,25 @@ namespace TorchSharp
                 /// <exception cref="InvalidOperationException"></exception>
                 public virtual void register_module(string name, Module submodule)
                 {
-                    if (submodule is null || submodule.handle.IsInvalid) {
-                        if (_internal_submodules.ContainsKey(name)) {
+                    if (submodule is null || submodule.handle.IsInvalid)
+                    {
+                        if (_internal_submodules.ContainsKey(name))
+                        {
                             _internal_submodules.Remove(name);
                         }
-                    } else {
-                        if (name.Contains(".")) {
+                    }
+                    else
+                    {
+                        if (name.Contains("."))
+                        {
                             throw new ArgumentException($"module name can't contain \".\", got: {name}");
                         }
-                        if (string.IsNullOrEmpty(name)) {
+                        if (string.IsNullOrEmpty(name))
+                        {
                             throw new ArgumentException("module name can't be empty string \"\"");
                         }
-                        if (_internal_submodules.ContainsKey(name)) {
+                        if (_internal_submodules.ContainsKey(name))
+                        {
                             throw new InvalidOperationException($"Sub-module {name} is already registered.");
                         }
 
@@ -843,18 +912,25 @@ namespace TorchSharp
 
                 protected void ConditionallyRegisterParameter(string name, Parameter? value)
                 {
-                    if (value is null) {
-                        if (_internal_params.ContainsKey(name)) {
+                    if (value is null)
+                    {
+                        if (_internal_params.ContainsKey(name))
+                        {
                             _internal_params.Remove(name);
                         }
-                    } else {
+                    }
+                    else
+                    {
                         var p = value is Parameter parameter
                             ? parameter
                             : new Parameter(value, requires_grad: true);
 
-                        if (_internal_params.ContainsKey(name)) {
+                        if (_internal_params.ContainsKey(name))
+                        {
                             _internal_params[name] = p;
-                        } else {
+                        }
+                        else
+                        {
                             _internal_params.Add(name, p);
                         }
                     }
@@ -862,15 +938,118 @@ namespace TorchSharp
 
                 protected void ConditionallyRegisterBuffer(string name, Tensor? value, bool persistent = true)
                 {
-                    if (value is null) {
-                        if (_internal_buffers.ContainsKey(name)) {
+                    if (value is null)
+                    {
+                        if (_internal_buffers.ContainsKey(name))
+                        {
                             _internal_buffers.Remove(name);
                         }
-                    } else {
-                        if (_internal_buffers.ContainsKey(name)) {
+                    }
+                    else
+                    {
+                        if (_internal_buffers.ContainsKey(name))
+                        {
                             _internal_buffers[name] = (value, persistent);
-                        } else {
+                        }
+                        else
+                        {
                             _internal_buffers.Add(name, (value, persistent));
+                        }
+                    }
+                }
+
+                public void ResetParameters(bool updateModel = false)
+                {
+                    this.ResetParameters(this, updateModel);
+                }
+
+                public void ResetBuffers()
+                {
+                    this.ResetBuffers(this);
+                }
+
+                public void ResetParameters(nn.Module module, bool updateModel = false)
+                {
+                    if (module._internal_params is not null)
+                    {
+                        var names = module._internal_params.Keys;                       
+
+                        foreach (var name in names)
+                        {
+                            this.ResetParameter(module, name, updateModel);                                               
+                        }
+                    }
+
+                    if (module._internal_submodules is not null)
+                    {
+                        foreach (var (submoduleName, subModule) in module._internal_submodules)
+                        {
+                            this.ResetParameters(subModule, updateModel);
+                        }
+                    }
+                }
+
+                public void ResetParameter(nn.Module module, string name, bool updateModel = false)
+                {
+                    var names = module._internal_params.Keys;
+
+                    if(names.Contains(name))
+                    {
+                        Type type = module.GetType();
+                        var parameter = module._internal_params[name];
+                        var shape = parameter.shape;
+
+                        parameter = torch.nn.Parameter(torch.empty(shape), true);
+
+                        module._internal_params[name] = parameter;
+
+                        if (updateModel)
+                        {
+                            FieldInfo field = type.GetField(name);
+
+                            if (field != null)
+                            {
+                                field.SetValue(module, parameter);
+                            }
+                            else
+                            {
+                                PropertyInfo property = type.GetProperty(name);
+
+                                if (property != null)
+                                {
+                                    property.SetValue(module, parameter);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                public void RemoveParameter(string name)
+                {
+                    this.ConditionallyRegisterParameter(name, null);
+                }
+
+                private void ResetBuffers(nn.Module module)
+                {
+                    if (module._internal_buffers is not null)
+                    {
+                        var names = module._internal_buffers.Keys;
+
+                        foreach (var name in names)
+                        {
+                            var buffer = module._internal_buffers[name];
+                            var shape = buffer.Item1.shape;
+                            var @bool = buffer.Item2;
+
+                            buffer = (torch.empty(shape), @bool);
+                        }
+                    }
+
+                    if (module._internal_submodules is not null)
+                    {
+                        foreach (var (submoduleName, subModule) in module._internal_submodules)
+                        {
+                            this.ResetBuffers(subModule);
                         }
                     }
                 }
@@ -921,7 +1100,7 @@ namespace TorchSharp
                 /// <param name="stream">A writable stream instance.</param>
                 /// <param name="skip">A list of keys not to consider when saving the weights.</param>
                 /// <returns></returns>
-                public Module save(System.IO.Stream stream, IList<string> ?skip = null)
+                public Module save(System.IO.Stream stream, IList<string>? skip = null)
                 {
                     using var writer = new System.IO.BinaryWriter(stream);
                     return save(writer, skip);
@@ -935,10 +1114,12 @@ namespace TorchSharp
                 /// <param name="sd">A dictionary containing all the buffers and parameters of the module.</param>
                 public static void save_state_dict(System.IO.BinaryWriter writer, Dictionary<string, Tensor> sd, IList<string>? skip = null)
                 {
-                    if (skip is not null && skip.Count > 0) {
+                    if (skip is not null && skip.Count > 0)
+                    {
                         // We need to make a copy, so that the passed-in 'sd' isn't modified.
                         var tmp = new Dictionary<string, Tensor>();
-                        foreach (var kv in sd.Where(kv => !skip.Contains(kv.Key))) {
+                        foreach (var kv in sd.Where(kv => !skip.Contains(kv.Key)))
+                        {
                             tmp.Add(kv.Key, kv.Value);
                         }
                         sd = tmp;
@@ -946,7 +1127,8 @@ namespace TorchSharp
 
                     writer.Encode(sd.Count); // 4 bytes
 
-                    foreach (var kvp in sd) {
+                    foreach (var kvp in sd)
+                    {
                         writer.Write(kvp.Key);
                         kvp.Value.Save(writer);
                     }
@@ -1011,7 +1193,8 @@ namespace TorchSharp
 
                     if (dt != DeviceType.CPU) this.cpu();
 
-                    try {
+                    try
+                    {
                         var sd = state_dict();
 
                         // First, figure out how many entries.
@@ -1020,28 +1203,35 @@ namespace TorchSharp
                         if (streamEntries != sd.Count && strict)
                             throw new ArgumentException($"Mismatched state_dict sizes: expected {sd.Count}, but found {streamEntries} entries.");
 
-                        for (int i = 0; i < streamEntries; ++i) {
+                        for (int i = 0; i < streamEntries; ++i)
+                        {
                             var key = reader.ReadString();
+
                             var found = sd.ContainsKey(key);
                             if (!found && strict)
                                 throw new ArgumentException($"Mismatched module state names: the target modules does not have a submodule or buffer named '{key}'");
 
-                            if (found && !skip.Contains(key)) {
+                            if (found && !skip.Contains(key))
+                            {
                                 sd[key].Load(reader);
                             }
-                            else {
+                            else
+                            {
                                 // Even if we are skipping this tensor, we need to load it in so that
                                 // the BinaryReader seeks forward in the input stream.
                                 Tensor tensor = TensorExtensionMethods.Load(reader, skip: readTensors == null);
 
-                                if (readTensors != null) {
+                                if (readTensors != null)
+                                {
                                     readTensors.Add(key, tensor);
                                 }
                             }
 
                             loadedParameters?.Add(key, found);
                         }
-                    } finally {
+                    }
+                    finally
+                    {
                         if (dt != DeviceType.CPU) _to(dt, di, false);
                     }
 
@@ -1116,7 +1306,8 @@ namespace TorchSharp
                 private void _init_parameters()
                 {
                     // In this case, the parameter registration was not done yet.
-                    foreach (var (parameterName, parameter) in _named_parameters()) {
+                    foreach (var (parameterName, parameter) in _named_parameters())
+                    {
                         register_parameter(parameterName, parameter);
                     }
                 }
@@ -1125,23 +1316,25 @@ namespace TorchSharp
                 {
                     if (_areComponentsRegistered) return;
 
-                    foreach (var field in GetFieldsRecursive(GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) {
+                    foreach (var field in GetFieldsRecursive(GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                    {
 
                         var fieldName = field.ComponentName();
                         if (_internal_submodules.ContainsKey(fieldName) || _internal_params.ContainsKey(fieldName) || _internal_buffers.ContainsKey(fieldName)) continue;
 
                         var value = field.GetValue(this);
 
-                        switch (value) {
-                        case Module module:
-                            register_module(fieldName, module);
-                            break;
-                        case Parameter param: // This test must come before the Tensor test
-                            register_parameter(fieldName, param);
-                            break;
-                        case Tensor tensor:
-                            register_buffer(fieldName, tensor);
-                            break;
+                        switch (value)
+                        {
+                            case Module module:
+                                register_module(fieldName, module);
+                                break;
+                            case Parameter param: // This test must come before the Tensor test
+                                register_parameter(fieldName, param);
+                                break;
+                            case Tensor tensor:
+                                register_buffer(fieldName, tensor);
+                                break;
                         }
                     }
 
@@ -1178,7 +1371,7 @@ namespace TorchSharp
 
                 /// Keeps the callback delegate alive
                 private ForwardFunctionC? _forwardNative;
-                protected string? name;
+                protected string? name;          
             }
 
             internal class BoxedModule : IDisposable
@@ -1204,7 +1397,8 @@ namespace TorchSharp
 
                     protected override void Dispose(bool disposing)
                     {
-                        if (disposing) {
+                        if (disposing)
+                        {
                             ReleaseHandle();
                         }
                     }
@@ -1233,7 +1427,8 @@ namespace TorchSharp
                 /// </summary>
                 protected void Dispose(bool disposing)
                 {
-                    if (disposing) {
+                    if (disposing)
+                    {
                         handle.Dispose();
                         handle.SetHandleAsInvalid();
                     }
@@ -1318,7 +1513,7 @@ namespace TorchSharp
             /// <summary>
             /// Represents a module that accepts 'hook' to the module logic.
             /// </summary>
-            public class HookableModule<TPreHook,TPostHook> : Module
+            public class HookableModule<TPreHook, TPostHook> : Module
             {
                 protected HookableModule(string name) : base(name) { }
 
@@ -1394,7 +1589,7 @@ namespace TorchSharp
             /// </summary>
             /// <typeparam name="T">The argument type of the module's forward() function.</typeparam>
             /// <typeparam name="TResult">The return type of the module's forward() function.</typeparam>
-            public abstract class Module<T, TResult> : HookableModule<Func<Module<T,TResult>, T, T>, Func<Module<T, TResult>, T, TResult, TResult>>, IModule<T, TResult>
+            public abstract class Module<T, TResult> : HookableModule<Func<Module<T, TResult>, T, T>, Func<Module<T, TResult>, T, TResult, TResult>>, IModule<T, TResult>
             {
                 public Module(string name) : base(name) { }
                 public Module(IntPtr handle, IntPtr boxedHandle) : base(handle, boxedHandle) { }
@@ -1414,11 +1609,13 @@ namespace TorchSharp
                 {
                     // Call pre-hooks, if available.
 
-                    foreach (var hook in module_pre_hooks.Values) {
+                    foreach (var hook in module_pre_hooks.Values)
+                    {
                         hook(this);
                     }
 
-                    foreach (var hook in pre_hooks.Values) {
+                    foreach (var hook in pre_hooks.Values)
+                    {
                         var modified = hook(this, input);
                         if (modified is not null)
                             input = modified;
@@ -1428,13 +1625,15 @@ namespace TorchSharp
 
                     // Call post-hooks, if available.
 
-                    foreach (var hook in post_hooks.Values) {
+                    foreach (var hook in post_hooks.Values)
+                    {
                         var modified = hook(this, input, result);
                         if (modified is not null)
                             result = modified;
                     }
 
-                    foreach (var hook in module_post_hooks.Values) {
+                    foreach (var hook in module_post_hooks.Values)
+                    {
                         hook(this);
                     }
 
@@ -1468,29 +1667,34 @@ namespace TorchSharp
                 {
                     // Call pre-hooks, if available.
 
-                    foreach (var hook in module_pre_hooks.Values) {
+                    foreach (var hook in module_pre_hooks.Values)
+                    {
                         hook(this);
                     }
 
-                    foreach (var hook in pre_hooks.Values) {
+                    foreach (var hook in pre_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2);
-                        if (modified.HasValue) {
+                        if (modified.HasValue)
+                        {
                             input1 = modified.Value.Item1;
                             input2 = modified.Value.Item2;
                         }
                     }
 
-                    var result = forward(input1,  input2);
+                    var result = forward(input1, input2);
 
                     // Call post-hooks, if available.
 
-                    foreach (var hook in post_hooks.Values) {
+                    foreach (var hook in post_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, result);
                         if (modified is not null)
                             result = modified;
                     }
 
-                    foreach (var hook in module_post_hooks.Values) {
+                    foreach (var hook in module_post_hooks.Values)
+                    {
                         hook(this);
                     }
 
@@ -1525,13 +1729,16 @@ namespace TorchSharp
                 {
                     // Call pre-hooks, if available.
 
-                    foreach (var hook in module_pre_hooks.Values) {
+                    foreach (var hook in module_pre_hooks.Values)
+                    {
                         hook(this);
                     }
 
-                    foreach (var hook in pre_hooks.Values) {
+                    foreach (var hook in pre_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3);
-                        if (modified.HasValue) {
+                        if (modified.HasValue)
+                        {
                             input1 = modified.Value.Item1;
                             input2 = modified.Value.Item2;
                             input3 = modified.Value.Item3;
@@ -1542,13 +1749,15 @@ namespace TorchSharp
 
                     // Call post-hooks, if available.
 
-                    foreach (var hook in post_hooks.Values) {
+                    foreach (var hook in post_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, result);
                         if (modified is not null)
                             result = modified;
                     }
 
-                    foreach (var hook in module_post_hooks.Values) {
+                    foreach (var hook in module_post_hooks.Values)
+                    {
                         hook(this);
                     }
 
@@ -1584,13 +1793,16 @@ namespace TorchSharp
                 {
                     // Call pre-hooks, if available.
 
-                    foreach (var hook in module_pre_hooks.Values) {
+                    foreach (var hook in module_pre_hooks.Values)
+                    {
                         hook(this);
                     }
 
-                    foreach (var hook in pre_hooks.Values) {
+                    foreach (var hook in pre_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, input4);
-                        if (modified.HasValue) {
+                        if (modified.HasValue)
+                        {
                             input1 = modified.Value.Item1;
                             input2 = modified.Value.Item2;
                             input3 = modified.Value.Item3;
@@ -1602,13 +1814,15 @@ namespace TorchSharp
 
                     // Call post-hooks, if available.
 
-                    foreach (var hook in post_hooks.Values) {
+                    foreach (var hook in post_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, input4, result);
                         if (modified is not null)
                             result = modified;
                     }
 
-                    foreach (var hook in module_post_hooks.Values) {
+                    foreach (var hook in module_post_hooks.Values)
+                    {
                         hook(this);
                     }
 
@@ -1625,7 +1839,7 @@ namespace TorchSharp
             /// <typeparam name="T4">The fourth argument type of the module's forward() function.</typeparam>
             /// <typeparam name="T5">The fifth argument type of the module's forward() function.</typeparam>
             /// <typeparam name="TResult">The return type of the module's forward() function.</typeparam>
-            public abstract class Module<T1, T2, T3, T4, T5,TResult> : HookableModule<Func<Module<T1, T2, T3, T4, T5, TResult>, T1, T2, T3, T4, T5, (T1, T2, T3, T4, T5)?>, Func<Module<T1, T2, T3, T4, T5, TResult>, T1, T2, T3, T4, T5, TResult, TResult>>, IModule<T1, T2, T3, T4, T5, TResult>
+            public abstract class Module<T1, T2, T3, T4, T5, TResult> : HookableModule<Func<Module<T1, T2, T3, T4, T5, TResult>, T1, T2, T3, T4, T5, (T1, T2, T3, T4, T5)?>, Func<Module<T1, T2, T3, T4, T5, TResult>, T1, T2, T3, T4, T5, TResult, TResult>>, IModule<T1, T2, T3, T4, T5, TResult>
             {
                 protected Module(string name) : base(name) { }
                 protected Module(IntPtr handle, IntPtr boxedHandle) : base(handle, boxedHandle) { }
@@ -1645,13 +1859,16 @@ namespace TorchSharp
                 {
                     // Call pre-hooks, if available.
 
-                    foreach (var hook in module_pre_hooks.Values) {
+                    foreach (var hook in module_pre_hooks.Values)
+                    {
                         hook(this);
                     }
 
-                    foreach (var hook in pre_hooks.Values) {
+                    foreach (var hook in pre_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, input4, input5);
-                        if (modified.HasValue) {
+                        if (modified.HasValue)
+                        {
                             input1 = modified.Value.Item1;
                             input2 = modified.Value.Item2;
                             input3 = modified.Value.Item3;
@@ -1664,13 +1881,15 @@ namespace TorchSharp
 
                     // Call post-hooks, if available.
 
-                    foreach (var hook in post_hooks.Values) {
+                    foreach (var hook in post_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, input4, input5, result);
                         if (modified is not null)
                             result = modified;
                     }
 
-                    foreach (var hook in module_post_hooks.Values) {
+                    foreach (var hook in module_post_hooks.Values)
+                    {
                         hook(this);
                     }
 
@@ -1708,13 +1927,16 @@ namespace TorchSharp
                 {
                     // Call pre-hooks, if available.
 
-                    foreach (var hook in module_pre_hooks.Values) {
+                    foreach (var hook in module_pre_hooks.Values)
+                    {
                         hook(this);
                     }
 
-                    foreach (var hook in pre_hooks.Values) {
+                    foreach (var hook in pre_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, input4, input5, input6);
-                        if (modified.HasValue) {
+                        if (modified.HasValue)
+                        {
                             input1 = modified.Value.Item1;
                             input2 = modified.Value.Item2;
                             input3 = modified.Value.Item3;
@@ -1728,13 +1950,15 @@ namespace TorchSharp
 
                     // Call post-hooks, if available.
 
-                    foreach (var hook in post_hooks.Values) {
+                    foreach (var hook in post_hooks.Values)
+                    {
                         var modified = hook(this, input1, input2, input3, input4, input5, input6, result);
                         if (modified is not null)
                             result = modified;
                     }
 
-                    foreach (var hook in module_post_hooks.Values) {
+                    foreach (var hook in module_post_hooks.Values)
+                    {
                         hook(this);
                     }
 

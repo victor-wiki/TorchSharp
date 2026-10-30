@@ -1,8 +1,7 @@
 // Copyright (c) .NET Foundation and Contributors.  All Rights Reserved.  See LICENSE in the project root for license information.
-using System;
+using static TorchSharp.PInvoke.NativeMethods;
 using static TorchSharp.torch;
 using static TorchSharp.torch.nn;
-using static TorchSharp.PInvoke.NativeMethods;
 
 #nullable enable
 namespace TorchSharp
@@ -23,7 +22,8 @@ namespace TorchSharp
                 this.out_features = weight.shape[0];
 
                 this.weight = weight;
-                if (bias is not null) {
+                if (bias is not null)
+                {
                     this.bias = bias;
                 }
             }
@@ -36,7 +36,8 @@ namespace TorchSharp
                 weight = torch.empty(outputSize, inputSize, device: device, dtype: dtype).AsParameter();
                 init.kaiming_uniform_(weight, a: _sqrt5);
 
-                if (hasBias) {
+                if (hasBias)
+                {
                     bias = torch.empty(outputSize, device: device, dtype: dtype).AsParameter();
                     var (fanIn, _) = init.CalculateFanInAndFanOut(weight);
                     var bound = fanIn > 0 ? 1 / Math.Sqrt(fanIn) : 0;
@@ -50,27 +51,49 @@ namespace TorchSharp
                 return torch.nn.functional.linear(tensor, _weight!, _bias);
             }
 
+            public void reset_parameters()
+            {
+                if (!this.weight.is_hf_initialized)
+                {
+                    init.kaiming_uniform_(this.weight, a: Math.Sqrt(5));
+                }
+
+                if (this.bias is not null && !this.bias.is_hf_initialized)
+                {
+                    var (fan_in, _) = init.CalculateFanInAndFanOut(this.weight);
+                    var bound = fan_in > 0 ? 1.0 / Math.Sqrt(fan_in) : 0;
+
+                    init.uniform_(this.bias, -bound, bound);
+                }
+            }
+
             protected override void Dispose(bool disposing)
             {
-                if (disposing) {
+                if (disposing)
+                {
                     _weight?.Dispose();
                     _bias?.Dispose();
                 }
             }
 
-            public Parameter? bias {
+            public Parameter? bias
+            {
                 get => _bias;
-                set {
+                set
+                {
                     _bias?.Dispose();
                     _bias = value?.DetachFromDisposeScope() as Parameter;
                     ConditionallyRegisterParameter(BiasComponentName, _bias);
                 }
             }
 
-            public Parameter weight {
+            public Parameter weight
+            {
                 get => _weight!;
-                set {
-                    if (value.Handle != _weight?.Handle) {
+                set
+                {
+                    if (value.Handle != _weight?.Handle)
+                    {
                         _weight?.Dispose();
                         _weight = (value.DetachFromDisposeScope() as Parameter)!;
                         ConditionallyRegisterParameter(WeightComponentName, _weight);
@@ -79,11 +102,14 @@ namespace TorchSharp
             }
 
             // Rather than spending cycles discovering what parameters exist, we can just hardcode it.
-            protected internal override nn.Module _to(Device device, ScalarType dtype, bool non_blocking) {
-                if (_weight is not null && ReplaceParameter(dtype, device, _weight, out var w)) {
+            protected internal override nn.Module _to(Device device, ScalarType dtype, bool non_blocking)
+            {
+                if (_weight is not null && ReplaceParameter(dtype, device, _weight, out var w))
+                {
                     weight = w!;
                 }
-                if (_bias is not null && ReplaceParameter(dtype, device, _bias, out var b)) {
+                if (_bias is not null && ReplaceParameter(dtype, device, _bias, out var b))
+                {
                     bias = b!;
                 }
                 return this;
@@ -92,19 +118,24 @@ namespace TorchSharp
             protected internal override nn.Module _to(DeviceType deviceType, int deviceIndex, bool non_blocking)
             {
                 var device = new Device(deviceType, deviceIndex);
-                if (_weight is not null && ReplaceParameter(_weight.dtype, device, _weight, out var w)) {
+                if (_weight is not null && ReplaceParameter(_weight.dtype, device, _weight, out var w))
+                {
                     weight = w!;
                 }
-                if (_bias is not null && ReplaceParameter(_bias.dtype, device, _bias, out var b)) {
+                if (_bias is not null && ReplaceParameter(_bias.dtype, device, _bias, out var b))
+                {
                     bias = b!;
                 }
                 return this;
             }
-            protected internal override nn.Module _to(ScalarType dtype, bool non_blocking) {
-                if (_weight is not null && ReplaceParameter(dtype, _weight.device, _weight, out var w)) {
+            protected internal override nn.Module _to(ScalarType dtype, bool non_blocking)
+            {
+                if (_weight is not null && ReplaceParameter(dtype, _weight.device, _weight, out var w))
+                {
                     weight = w!;
                 }
-                if (_bias is not null && ReplaceParameter(dtype, _bias.device, _bias, out var b)) {
+                if (_bias is not null && ReplaceParameter(dtype, _bias.device, _bias, out var b))
+                {
                     bias = b!;
                 }
                 return this;

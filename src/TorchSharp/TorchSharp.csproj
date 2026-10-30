@@ -7,12 +7,14 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <Platforms>AnyCPU;x64</Platforms>
 	<PackageId>victor-wiki.$(AssemblyName)</PackageId>
-    <Version>1.0.0</Version>
-    <PackageReleaseNotes></PackageReleaseNotes>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
-    <FileVersion>1.0.0</FileVersion>
+    <Version>1.0.1</Version>
+    <PackageReleaseNotes>1. add: is_hf_initialized to Tensor and Module;
+2. add: ResetParameters to Module and reset_parameters to Linear.</PackageReleaseNotes>
+    <AssemblyVersion>1.0.1</AssemblyVersion>
+    <FileVersion>1.0.1</FileVersion>
     <RepositoryUrl>https://github.com/victor-wiki/TorchSharp</RepositoryUrl>
     <Description>This project is fork from https://github.com/dotnet/TorchSharp and make some changes. </Description>
+    <Authors>victor-wiki</Authors>
   </PropertyGroup>
 
   <ItemGroup>

@@ -34,6 +34,8 @@ namespace TorchSharp
 
             internal DisposeScope? OwningDisposeScope { get; set; }
 
+            public bool is_hf_initialized { get; set; }
+
             internal Tensor(IntPtr handle, bool register = true)
             {
                 this.handle = handle;
@@ -6722,7 +6724,7 @@ namespace TorchSharp
             // Specifically added to make F# look good.
             public static Tensor op_MinusMinusGreater(Tensor t, torch.nn.Module<Tensor, Tensor> m) => m.call(t);
 
-            public override string ToString() => ToMetadataString();
+            public override string ToString() => ToMetadataString() + " " + ToString(TensorStringStyle.Numpy);
 
             /// <summary>
             /// Tensor-specific ToString(), for backward-compat with pre-0.96.4 versions.
